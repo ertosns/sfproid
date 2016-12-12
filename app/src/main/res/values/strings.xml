@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">SFP</string>
+
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+
+    <string name="action_settings">Settings</string>
+    <string name="SERVER_ERROR">Ops! server error, please try again</string>
+    <string name="USER_ALREADY_FOUND">user already found with the same password, and email</string>
+    <string name="USER_NOT_FOUND">User not found, check you authentication</string>
+    <string name="CONNECTIVITY_ERROR">can\'t reach server, check you connectivity</string>
+    <string name="BAD_PASS">not valid, password consists of 8-20 alphanumeric characters</string>
+    <string name="BAD_NAME">not valid, name consists of 4-20 alphanumeric characters</string>
+    <string name="BAD_EMAIL">not valid email</string>
+    <string name="SIGN_UP">sign up</string>
+    <string name="LOG_IN">log in</string>
+    <string name="LOG_OUT">log out</string>
+    <string name="NAME">name</string>
+    <string name="PASS">password</string>
+    <string name="EMAIL">email</string>
+    <string name="LOGIN_IF_USER_EXISTS">Already a member? Login</string>
+    <string name="DONT_HAVE_ACCOUNT_CREATE_ONE">don\'t have Account? Sign up</string>
+    <string name="NO_CONNECTIVITY">No Internet access!</string>
+    <string name="DOWNLOAD_DONE">song downloaded successfully</string>
+    <string name="SONG_SIZE">size</string>
+    <string name="DOWNLOADING_NOTIFY_TITLE">downloading new song</string>
+</resources>
