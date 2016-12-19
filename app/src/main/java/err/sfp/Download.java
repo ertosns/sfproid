@@ -1,10 +1,14 @@
 package err.sfp;
 
 import android.Manifest;
+import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -12,6 +16,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.widget.SwitchCompat;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -21,9 +26,23 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.BaseAdapter;
 import android.widget.Button;
+import android.widget.GridView;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import org.w3c.dom.Text;
+
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.List;
 
 import butterknife.BindView;
@@ -31,11 +50,15 @@ import butterknife.ButterKnife;
 import err.sfp.Authentication.Login;
 import err.sfp.Authentication.Signup;
 
+import static android.R.attr.animationDuration;
+import static android.R.attr.visible;
+
 //TODO menu, floating btn, intents flags
 //TODO drawer should be updated each time actionbar humberger icon clicked
 //TODO while downloading in case of listening=false task killing service after download is done.
 //TODO listener doens't work because no broadcast works
-
+//TODO if givin search string is song url view download btn as the only option
+//TODO enable relationships between users, and sending songs with messages.
 public class Download extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, Consts {
 
@@ -46,6 +69,14 @@ public class Download extends AppCompatActivity
     SharedPreferences sharedPreferences = null;
     SharedPreferences.Editor pref = null;
     Intent listenerService = null;
+    GridView grid = null;
+    TextView searchTv = null;
+    Button searchBtn = null;
+    LinearLayout searchLayout = null;
+    boolean searching = false;
+    Handler handler = null;
+    YoutubeClient clientRef = null;
+    String pastSearchText = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,18 +87,63 @@ public class Download extends AppCompatActivity
         sharedPreferences = getSharedPreferences(APP_PREFERENCES, MODE_PRIVATE);
         pref = sharedPreferences.edit();
         listenerService = new Intent(this, Listener.class);
+        searchTv = (TextView) findViewById(R.id.search_tv);
+        searchBtn = (Button) findViewById(R.id.search_btn);
+        grid = (GridView) findViewById(R.id.gridview);
+        searchLayout = (LinearLayout) findViewById(R.id.search_layout);
+        //make btn click uneffective if it's already searching and text didn't change.
+        handler = new Handler() {
+            @Override
+            public void handleMessage(Message msg) {
+                assert clientRef != null : "clientRef = null";
+                populateGridThread(clientRef);
+            }
+        };
+        searchBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                //TODO backup bitmaps for stack back btn.
 
+                if(Utils.isOnline(Download.this)) {
+                    if(searching) {
+                        Log.i(T, "search requests while searching isn't done");
+                        return;
+                    }
+                    String queryText = searchTv.getText().toString().trim();
+
+                    Log.i(T, "search btn clicked WITH queryText = " + queryText);
+                    if (queryText != "") {
+                        if(pastSearchText!=null) {
+                            if (pastSearchText.equals(queryText)) {
+                                Log.i(T, "searching the same Text");
+                                return;
+                            }
+                        }
+                        if(clientRef != null) {
+                            Log.i(T, "clearing items");
+                            clientRef.items.clear();
+                        }
+                        pastSearchText = queryText;
+                        final YoutubeClient client = new YoutubeClient(Download.this, queryText);
+                        clientRef = client;
+                        client.start();
+                        searching = true;
+                    }
+                } else searchBtn.setError(getString(R.string.CONNECTIVITY_ERROR));
+                //Log.i(T, "looper is out")
+            }
+        });
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        /*FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();
             }
-        });
+        });*/
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -78,6 +154,8 @@ public class Download extends AppCompatActivity
         initDrawerViews();
 
     }
+
+
 
     @Override
     public void onResume(){
@@ -130,7 +208,6 @@ public class Download extends AppCompatActivity
                 if (signed) {
                     boolean checked = listening.isChecked();
                     if (checked) {
-                        Log.i(T, "toggle check to ON");
                         if (!rwPermissionsGranted()) {
                             Log.i(T, "any of rw permissions isn't/aren't granted");
                             askRWPermissions();
@@ -144,20 +221,17 @@ public class Download extends AppCompatActivity
                                 }
                             }
                         }
+                        Toast.makeText(Download.this, getString(R.string.LISTENER_ACTIVATED), Toast.LENGTH_LONG).show();
+                        Log.i(T, "starting service");
                         pref.putBoolean(LISTENING, true);
                         pref.commit();
                         openListener();
                     } else {
-                        //kill broadCast
-                        /* doesn't work
-                        Log.i(T, "killing Listening service");
-                        Intent intent = new Intent();
-                        intent.setAction(SHAREDPREFERENCES_ACTION_FILTER);
-                        intent.putExtra(PREFERENCE_TYPE, STOP_FLAG);
-                        intent.putExtra(STOP_PREF, true);
-                        sendBroadcast(intent);*/
-                        //stopService(listenerService);
-
+                        Toast.makeText(Download.this, getString(R.string.LISTENER_DEACTIVATED),
+                                Toast.LENGTH_LONG).show();
+                        Log.i(T, "sending kill broadcast");
+                        stopServiceBroadcast();
+                        Log.i(T, "stopping service");
                         pref.putBoolean(LISTENING, false);
                         pref.commit();
                     }
@@ -166,14 +240,21 @@ public class Download extends AppCompatActivity
         });
     }
 
-    public void openListener(){
+    public void openListener() {
         if(signedUp() && rwPermissionsGranted() && isListeningToggleOn()) {
             Log.i(T, "start Listener Service");
-
             listenerService.putExtra(UNIQUE_ID, sharedPreferences.getString(UNIQUE_ID, null));
             if(isListeningToggleOn()) stopService(listenerService); //TODO diff between boths wasy of killing.
             startService(listenerService);
         }
+    }
+
+    public void stopServiceBroadcast() {
+        Intent intent = new Intent(SHAREDPREFERENCES_ACTION_FILTER);
+        intent.setAction(SHAREDPREFERENCES_ACTION_FILTER);
+        intent.putExtra(PREFERENCE_TYPE, STOP_FLAG);
+        intent.putExtra(STOP_PREF, true);
+        sendBroadcast(intent);
     }
 
     public boolean isListeningToggleOn() {
@@ -270,5 +351,106 @@ public class Download extends AppCompatActivity
     public void askRWPermissions() {
         ActivityCompat.requestPermissions(Download.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE,
                 Manifest.permission.READ_EXTERNAL_STORAGE}, RW_PERMISSION);
+    }
+
+
+    public void populateGridThread (final YoutubeClient client) {
+
+        if(grid.getVisibility() != View.VISIBLE) grid.setVisibility(View.VISIBLE);
+        Log.i(T, "grid setAdapter");
+        grid.setAdapter(new GridAdapter(Download.this, client));
+            //TODO implement on double click
+        Log.i(T, "grid onItemClickListener");
+        grid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                @Override
+                public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                    //Intent downloadActivity = new Intent(Download.this, DownloadSong.class);
+                    //TODO set flags
+                    //downloadActivity.putExtra("url", client.getUrl(i));
+                    //startActivity(downloadActivity);
+                    Log.i(T, "download request made");
+                    if (!sharedPreferences.getBoolean(LISTENING, false)) {
+                        Log.i(T, "listener is off");
+                        Toast.makeText(Download.this, getString(R.string.LISTENER_IS_OFF), Toast.LENGTH_LONG).show();
+                    }
+                    downloadSong(client.items.get(i).videoId);
+                }
+        });
+        Log.i(T, "populatingGridThread method finished");
+    }
+
+
+    class GridAdapter extends BaseAdapter {
+        Context mContext;
+        YoutubeClient client;
+        LayoutInflater inflater = getLayoutInflater();
+        View v = null;
+        ImageView videoThumbnail;
+        TextView  videoTitle;
+
+        public GridAdapter(Context context, YoutubeClient client) {
+            Log.i(T, "GridAdapter initialized");
+            mContext = context;
+            this.client = client;
+        }
+
+        @Override
+        public int getCount() {
+            Log.i(T, "getCount");
+            return NUMBER_OF_VIDEOS_RETURNED;
+        }
+
+        @Override
+        public Object getItem(int i) {
+            Log.i(T, "getItem");
+            return null;
+        }
+
+        @Override
+        public long getItemId(int i) {
+            Log.i(T, "getItemId");
+            return 0;
+        }
+
+        @Override
+        public View getView(int i, View view, ViewGroup viewGroup) {
+            Log.i(T, "in getView()");
+            if (view == null) {
+                v = inflater.inflate(R.layout.grid_item, null);
+                videoThumbnail = (ImageView) v.findViewById(R.id.grid_iv);
+                videoTitle = (TextView) v.findViewById(R.id.grid_tv);
+                videoThumbnail.setImageBitmap(client.items.get(i).thumbnail);
+                videoTitle.setText(client.items.get(i).title);
+                Log.i(T, "item "+i+" added to grid");
+            } else {
+                v =  view;
+            }
+            if(client.done) searching = false;
+            return v;
+        }
+    }
+
+    public void downloadSong(String songId) {
+        HttpConThread con = new HttpConThread(getDownloadSongUrl(songId));
+        con.start();
+        int res = 0;
+        synchronized (con) {
+            try {
+                con.wait();
+                res =  con.code;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        Log.i(T, "downloadSongCode = "+res);
+        Toast.makeText(Download.this, (res==200)?getString(R.string.WILL_BE_DOWNLOADED_SOON):getString(R.string.SERVER_ERROR_TRY_AGAIN), Toast.LENGTH_LONG).show();
+    }
+
+    public String getDownloadSongUrl(String songId) {
+        return new StringBuilder(PROTOCOL).append(HOST).append(PATH)
+                .append("mobilesdownload=true&id=")
+                .append(sharedPreferences.getString(UNIQUE_ID, "null"))
+                .append("&songId=").append(songId).toString();
     }
 }

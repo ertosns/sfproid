@@ -62,6 +62,10 @@ public class Utils implements Consts{
         return Base64.encodeToString(m.getBytes(), Base64.DEFAULT);
     }
 
+    public static String base64Url(String m) {
+        return Base64.encodeToString(m.getBytes(), Base64.URL_SAFE).replace("=", "");
+    }
+
     public static byte[] mergeBytes(byte[] byte1, byte[] byte2) {
         int len1 = byte1.length;
         int len2 = byte2.length;

@@ -10,7 +10,7 @@ public interface Consts {
     String APP_PREFERENCES = "app_pref";
     String APP_PREFERENCES_LISTENER = "APPPREFLIST";
     String PROTOCOL ="http://";
-    String HOST = "192.168.1.22";
+    String HOST = "192.168.1.21";
     String PATH = ":8080/sfp/getsong?";
     String ONLINE = "online";
     int SOCK_PORT = 65123;
@@ -35,5 +35,7 @@ public interface Consts {
     String DEFULT_ID = "defId";
     byte[] DOWNLOAD_SUCCESSED = {1};
     byte[] DOWNLOAD_FAILED = {0};
+    String YOUTUBE_CLIENT_ID = "AIzaSyA-B96SVHNxg1VgQzrt9glANGo_W91b_rs";
+    int NUMBER_OF_VIDEOS_RETURNED = 25;
 
 }

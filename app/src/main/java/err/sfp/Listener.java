@@ -9,7 +9,9 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.renderscript.ScriptGroup;
 import android.support.annotation.Nullable;
 import android.support.annotation.StringDef;
@@ -39,6 +41,7 @@ public class Listener extends IntentService implements Consts {
     SharedPreferences sharedPreferences  = null;
     SharedPreferences.Editor pref = null;
     String uniqueId = null;
+    boolean breakFlag = false;
 
     public Listener() {
         super(Listener.class.getName());
@@ -47,29 +50,52 @@ public class Listener extends IntentService implements Consts {
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        /*IntentFilter filter = new IntentFilter(SHAREDPREFERENCES_ACTION_FILTER);
+        IntentFilter filter = new IntentFilter(SHAREDPREFERENCES_ACTION_FILTER);
         filter.addAction(SHAREDPREFERENCES_ACTION_FILTER);
-        registerReceiver(broadcastReceiver, filter); */
-
+        registerReceiver(broadcastReceiver, filter);
         sharedPreferences = getSharedPreferences(APP_PREFERENCES_LISTENER, MODE_PRIVATE);
         pref = sharedPreferences.edit();
         uniqueId = intent.getStringExtra(UNIQUE_ID);
-
         Log.i(T, "connecting");
         connect();
-
+;
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(broadcastReceiver);
+    }
+
+    BroadcastReceiver broadcastReceiver = new  BroadcastReceiver() {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            //possible received intents key sorted by frequency {stop, online}
+            //one pair received at time preceded by type flag (int)
+            Log.i(T, "sharedPreferences broadcast received");
+            int preference = intent.getIntExtra(PREFERENCE_TYPE, STOP_FLAG);
+
+            if (preference == STOP_FLAG) {
+                if (intent.getBooleanExtra(STOP_PREF, false)) killService();
+            } else if (preference == ONLINE_FLAG) {
+                pref.putBoolean(ONLINE, intent.getBooleanExtra(ONLINE, false));
+                pref.commit();
+            }
+        }
+
+
+    };
 
     public void killService() {
-        //unregister receiver, not needed, broadcasts are local
-        //selfStop
         Log.i(T, "stopping Listener service");
-        //this.stopSelf(uniqueStartId);
+        stopSelf();
+        breakFlag = true;
     }
 
     public void connect() {
         while(true) {
+            if(breakFlag) break;
             if(sharedPreferences.getBoolean(ONLINE, true) && uniqueId != null) {
                 ListenerThread lt = new ListenerThread();
 
@@ -98,27 +124,6 @@ public class Listener extends IntentService implements Consts {
             Log.i(T, "reconnect");
         }
     }
-
-    //Doesn't work 4 no clear reason.
-    BroadcastReceiver broadcastReceiver = new  BroadcastReceiver() {
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            //possible received intents key sorted by frequency {stop, online}
-            //one pair received at time preceded by type flag (int)
-            Log.i(T, "sharedPreferences broadcast received");
-            int preference = intent.getIntExtra(PREFERENCE_TYPE, STOP_FLAG);
-
-            if (preference == STOP_FLAG) {
-                if (intent.getBooleanExtra(STOP_PREF, false)) killService();
-            } else if (preference == ONLINE_FLAG) {
-                pref.putBoolean(ONLINE, intent.getBooleanExtra(ONLINE, false));
-                pref.commit();
-            }
-        }
-
-
-    };
 
 
     class ListenerThread extends Thread {
@@ -217,7 +222,7 @@ public class Listener extends IntentService implements Consts {
         }
     }
 
-    class DownloadSong extends Thread {
+    class DownloadSong  extends Thread {
         private InputStream is;
         private byte[] bytes;
         private NotificationCompat.Builder notBuilder;

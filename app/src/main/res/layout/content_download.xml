@@ -1,20 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/content_download"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:paddingBottom="@dimen/activity_vertical_margin"
-    android:paddingLeft="@dimen/activity_horizontal_margin"
-    android:paddingRight="@dimen/activity_horizontal_margin"
-    android:paddingTop="@dimen/activity_vertical_margin"
-    app:layout_behavior="@string/appbar_scrolling_view_behavior"
-    tools:context="err.sfp.Download"
-    tools:showIn="@layout/app_bar_download">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World!" />
-</RelativeLayout>
+    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:weightSum="5"
+        android:paddingLeft="24dp"
+        android:paddingRight="24dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:id="@+id/content_download"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        tools:context="err.sfp.Download"
+        tools:showIn="@layout/app_bar_download">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_alignParentTop="true"
+            android:id="@+id/search_layout"
+            android:orientation="vertical">
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/SEARCH_TV_HINT"
+                android:id="@+id/search_tv" />
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/search_btn"
+                android:text="@string/YOUTUBE_SEARCH"
+                android:layout_gravity="center"
+                style="@style/btn"/>
+        </LinearLayout>
+        <!--how make gridView stretch from end of btn to end of screen-->
+        <GridView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="4"
+                android:layout_alignParentBottom="true"
+                android:visibility="gone"
+                android:id="@+id/gridview"
+                android:layout_marginTop="8dp"
+                android:numColumns="auto_fit"
+                android:columnWidth="@dimen/result_width_grid"
+                android:verticalSpacing="10dp"
+                android:horizontalSpacing="10dp"
+                android:stretchMode="columnWidth" />
+
+    </LinearLayout>

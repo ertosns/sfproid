@@ -24,4 +24,14 @@
     <string name="DOWNLOAD_DONE">song downloaded successfully</string>
     <string name="SONG_SIZE">size</string>
     <string name="DOWNLOADING_NOTIFY_TITLE">downloading new song</string>
+    <string name="SEARCH_TV_HINT">search</string>
+    <string name="YOUTUBE_SEARCH">youtube video search</string>
+    <string name="NO_RESULT_FOUND">no result found</string>
+    <string name="WILL_BE_DOWNLOADED_SOON">video will be downloaded soon</string>
+    <string name="SERVER_ERROR_TRY_AGAIN">server error! please try again</string>
+    <string name="SEARCH_TITLE">search youtube</string>
+    <string name="SEARCHING">searching...</string>
+    <string name="LISTENER_IS_OFF">make sure Listener is ON, for song to be downloaded</string>
+    <string name="LISTENER_ACTIVATED">Listener activated</string>
+    <string name="LISTENER_DEACTIVATED">Listener deactivated, you won\'t be able to receive any remote songs</string>
 </resources>

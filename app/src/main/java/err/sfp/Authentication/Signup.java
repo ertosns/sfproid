@@ -52,13 +52,17 @@ public class Signup extends AppCompatActivity implements Consts{
                 //TODO SET style
 
                 if(!Utils.isOnline(Signup.this)) {
+                    Log.i(T, "no connectivity");
                     signup.setError(getString(R.string.NO_CONNECTIVITY));
+                    Log.i(T, "should return");
                     return;
                 }
+                
                 String inputName = String.valueOf(name.getText());
                 if(inputName == null) badName();
                 boolean validName = Utils.validateWord(inputName);
                 if(!validName) {
+                    Log.i(T, "not a valid name");
                     badName();
                     return;
                 }
@@ -67,6 +71,7 @@ public class Signup extends AppCompatActivity implements Consts{
                 if(inputPassword == null) badPass();
                 boolean validPass = Utils.validatePass(inputPassword);
                 if(!validPass) {
+                    Log.i(T, "not a valid Pass");
                     badPass();
                     return;
                 }
@@ -75,6 +80,7 @@ public class Signup extends AppCompatActivity implements Consts{
                 if(inputEmail == null) badEmail();
                 boolean validEmail = Utils.validateEmail(inputEmail);
                 if(!validEmail) {
+                    Log.i(T, "not a valid email");
                     badEmail();
                     return;
                 }
@@ -140,9 +146,12 @@ public class Signup extends AppCompatActivity implements Consts{
     }
 
     public String getSignupUrl(String name, String pass, String email) {
-            return new StringBuilder("signup=true&name=").
-                    append(Utils.base64(name)).append("&pass=").
-                    append(Utils.base64(pass)).append("&email=").
-                    append(Utils.base64(email)).toString();
+            return new StringBuilder("signup=true&")
+                    .append(Utils.base64Url("name")).append("=")
+                    .append(Utils.base64(name)).append("&")
+                    .append(Utils.base64Url("pass")).append("=")
+                    .append(Utils.base64(pass)).append("&")
+                    .append(Utils.base64Url("email")).append("=")
+                    .append(Utils.base64(email)).toString();
     }
 }

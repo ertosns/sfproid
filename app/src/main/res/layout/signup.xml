@@ -58,6 +58,8 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="24dp"
             android:layout_marginTop="24dp"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
             style="@style/btn"
             android:text="@string/SIGN_UP">
         </Button>

@@ -43,7 +43,9 @@ public class Login extends AppCompatActivity implements Consts {
         login.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+
                 if(!Utils.isOnline(Login.this)) {
+                    Log.i(T, "no connectivity");
                     login.setError(getString(R.string.NO_CONNECTIVITY));
                     return;
                 }
@@ -51,6 +53,7 @@ public class Login extends AppCompatActivity implements Consts {
                 if(inputPassword == null) badPass();
                 boolean validPass = Utils.validatePass(inputPassword);
                 if(!validPass) {
+                    Log.i(T, "not a valid pass");
                     badPass();
                     return;
                 }
@@ -59,6 +62,7 @@ public class Login extends AppCompatActivity implements Consts {
                 if(inputEmail == null) badEmail();
                 boolean validEmail = Utils.validateEmail(inputEmail);
                 if(!validEmail) {
+                    Log.i(T, "not a valid email");
                     badEmail();
                     return;
                 }
@@ -122,8 +126,10 @@ public class Login extends AppCompatActivity implements Consts {
     }
 
     public String getLoginUrl(String pass, String email) {
-        return new StringBuilder("login=true&pass=").
-                append(Utils.base64(pass)).append("&email=").
-                append(Utils.base64(email)).toString();
+        return new StringBuilder("login=true&")
+                .append(Utils.base64Url("pass")).append("=")
+                .append(Utils.base64(pass)).append("&")
+                .append(Utils.base64Url("email")).append("=")
+                .append(Utils.base64(email)).toString();
     }
 }
