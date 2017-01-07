@@ -26,6 +26,7 @@
             <EditText
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:maxLines="1"
                 android:hint="@string/SEARCH_TV_HINT"
                 android:id="@+id/search_tv" />
             <Button

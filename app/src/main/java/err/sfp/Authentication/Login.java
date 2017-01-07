@@ -14,6 +14,7 @@ import butterknife.BindView;
 import butterknife.ButterKnife;
 import err.sfp.Consts;
 import err.sfp.HttpConThread;
+import err.sfp.Main;
 import err.sfp.R;
 import err.sfp.Utils;
 
@@ -112,14 +113,15 @@ public class Login extends AppCompatActivity implements Consts {
                 ie.printStackTrace();
             }
         }
-
         progressDialog.dismiss();
+
         int code = hct.code;
         if(code == SUCCESS_CODE) {
             pref.putString(UNIQUE_ID,  hct.getResponseString());
             pref.putBoolean(SIGNED, true);
             pref.commit();
             Log.i(T, "unique id read");
+            Main.update();
             Utils.mainActivityIntent(Login.this);
         }
         return code;

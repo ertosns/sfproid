@@ -1,37 +1,23 @@
 package err.sfp;
 
-        import android.app.ProgressDialog;
-        import android.content.Context;
-        import android.graphics.Bitmap;
-        import android.graphics.BitmapFactory;
-        import android.util.Log;
-
-        import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-        import com.google.api.client.http.HttpRequest;
-        import com.google.api.client.http.HttpRequestInitializer;
-        import com.google.api.client.http.HttpTransport;
-        import com.google.api.client.http.javanet.NetHttpTransport;
-        import com.google.api.client.json.JsonFactory;
-        import com.google.api.client.json.jackson2.JacksonFactory;
-        //import com.google.api.services.samples.youtube.cmdline.Auth;
-
-        import com.google.api.services.youtube.YouTube;
-        import com.google.api.services.youtube.model.ResourceId;
-        import com.google.api.services.youtube.model.SearchListResponse;
-        import com.google.api.services.youtube.model.SearchResult;
-        import com.google.api.services.youtube.model.Thumbnail;
-
-        import java.io.BufferedReader;
-        import java.io.IOException;
-        import java.io.InputStream;
-        import java.io.InputStreamReader;
-        import java.net.URI;
-        import java.net.URL;
-        import java.util.ArrayList;
-        import java.util.Iterator;
-        import java.util.List;
-        import java.util.Properties;
-
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.util.Log;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpRequest;
+import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.services.youtube.YouTube;
+import com.google.api.services.youtube.model.ResourceId;
+import com.google.api.services.youtube.model.SearchListResponse;
+import com.google.api.services.youtube.model.SearchResult;
+import com.google.api.services.youtube.model.Thumbnail;
+import java.io.IOException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * Created by Err on 16-12-12.
@@ -40,11 +26,6 @@ package err.sfp;
 //TODO save images to drawable, for backup and save memory
 public class YoutubeClient  extends  Thread implements Consts{
 
-    /**
-     * Define a global variable that identifies the name of a file that
-     * contains the developer's API key.
-     */
-    private  final String PROPERTIES_FILENAME = "youtube.properties";
     boolean done = false;
     static ArrayList<ResultItem> items = new ArrayList<>();
     //private ProgressDialog pd;
@@ -130,7 +111,9 @@ public class YoutubeClient  extends  Thread implements Consts{
         } catch (Throwable t) {
             t.printStackTrace();
         } finally {
-            download.handler.sendEmptyMessage(0);
+            if(items.size()>0) {
+                download.handler.sendEmptyMessage(0);
+            }
             done = true;
             //pd.dismiss();
         }
@@ -141,6 +124,7 @@ public class YoutubeClient  extends  Thread implements Consts{
         // how view thumbnail as picture.
         if (!iteratorSearchResults.hasNext()) {
             Log.i(T, "no result");
+            download.handler.sendEmptyMessage(-1);
         }
         while (iteratorSearchResults.hasNext()) {
             Log.i(T, "result processing Result video");

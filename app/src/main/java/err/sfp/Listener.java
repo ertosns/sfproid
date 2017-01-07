@@ -1,64 +1,68 @@
 package err.sfp;
 
 import android.app.IntentService;
+import android.app.Notification;
 import android.app.NotificationManager;
-import android.app.Service;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.graphics.BitmapFactory;
 import android.os.Environment;
-import android.os.Handler;
-import android.os.IBinder;
-import android.os.Message;
-import android.renderscript.ScriptGroup;
-import android.support.annotation.Nullable;
-import android.support.annotation.StringDef;
 import android.support.v4.app.NotificationCompat;
-import android.support.v4.content.LocalBroadcastManager;
-import android.support.v7.widget.RecyclerViewAccessibilityDelegate;
 import android.util.Log;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.security.PrivateKey;
+import java.util.Arrays;
+
+import err.sfp.Database.Database;
+import err.sfp.SocialNetworking.ItemInfo;
+import err.sfp.SocialNetworking.Requests;
+import err.sfp.SocialNetworking.Songs;
 
 /**
  * Created by Err on 16-12-6.
  */
 
-//TODO prevent killing service|give high priority
-//TODO inform server you received successfully which song should be removed from server, (res) how serveral write will work?
-//TODO connectivity receiver doesn't seem to be working.
-//TODO check if braodcast registered??
+//TODO SET FLAGS ALL OVER THE CODE
+//TODO inform server you received successfully which song should be removed from server, (res) how several write will work?
 
 public class Listener extends IntentService implements Consts {
     SharedPreferences sharedPreferences  = null;
     SharedPreferences.Editor pref = null;
     String uniqueId = null;
     boolean breakFlag = false;
+    int pastTotalDownloads = 0;
+    String pastSongsInfo = "";
+    boolean wasDownloading = false;
+    String lastDownloadedSongId = "";
+    Database database;
+    NotificationManager manger = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
     public Listener() {
         super(Listener.class.getName());
+        database = Main.database;
     }
-
 
     @Override
     protected void onHandleIntent(Intent intent) {
+        breakFlag = false;
+        breakFlag = false;
         IntentFilter filter = new IntentFilter(SHAREDPREFERENCES_ACTION_FILTER);
         filter.addAction(SHAREDPREFERENCES_ACTION_FILTER);
         registerReceiver(broadcastReceiver, filter);
         sharedPreferences = getSharedPreferences(APP_PREFERENCES_LISTENER, MODE_PRIVATE);
+
         pref = sharedPreferences.edit();
         uniqueId = intent.getStringExtra(UNIQUE_ID);
         Log.i(T, "connecting");
         connect();
-;
     }
 
     @Override
@@ -73,7 +77,7 @@ public class Listener extends IntentService implements Consts {
         public void onReceive(Context context, Intent intent) {
             //possible received intents key sorted by frequency {stop, online}
             //one pair received at time preceded by type flag (int)
-            Log.i(T, "sharedPreferences broadcast received");
+            Log.i(T, "sharedPreferences broadcast received, to stop service(!online), kill service");
             int preference = intent.getIntExtra(PREFERENCE_TYPE, STOP_FLAG);
 
             if (preference == STOP_FLAG) {
@@ -125,10 +129,38 @@ public class Listener extends IntentService implements Consts {
         }
     }
 
+    public void sendUpdateDrawerBroadcast(boolean integer, int x, String msg) {
+        Intent bc = new Intent(LISTENER_MESSAGES_INTNET_FILTER);
+        bc.setAction(LISTENER_MESSAGES_INTNET_FILTER);
+        if(integer) {
+            bc.putExtra(LISTENER_FLAG_TYPE, LISTENER_INTEGER_FLAG);
+            bc.putExtra(LISTENER_INTEGER_FLAG_KEY, x);
+        }
+        else {
+            bc.putExtra(LISTENER_FLAG_TYPE, LISTENER_STRING_FLAG);
+            bc.putExtra(LISTENER_MESSAGE, msg);
+        }
+        Log.i(T, "sending listener info broadcast");
+        sendBroadcast(bc);
+    }
+
+    public void updateDownloads(int num) {
+        Log.i(T, "preparing updateDownloads broadcast");
+        sendUpdateDrawerBroadcast(true, num, null);
+    }
+
+    public void updateDownloadList(String songsInfo) {
+        Log.i(T, "preparing updateList broadcast, with info: "+songsInfo);
+        sendUpdateDrawerBroadcast(false, 0, songsInfo);
+    }
+
+    public String removeDownloadedSongAndClean(String id) {
+        Log.i(T, "removing Downloaded song from list, with id: "+id);
+        return pastSongsInfo.replaceAll(id+"/[\\w\\W]+\\n", ""); //does \n is part of \\w
+    }
 
     class ListenerThread extends Thread {
         boolean done = false;
-
         public void run() {
             Log.i(T, "stated and in first line in Thread run()");
             Socket sock = null;
@@ -149,19 +181,231 @@ public class Listener extends IntentService implements Consts {
                     e.printStackTrace();
                 }
 
-                byte[] intervalBytes = new byte[4];
-                is.read(intervalBytes);
-
-                int interval = Utils.bytesToInt(intervalBytes);
+                byte[] intBytes = new byte[4];
+                is.read(intBytes);
+                int interval = Utils.bytesToInt(intBytes);
                 pref.putInt(W8_INTERVAL, interval);
-                Log.i(T, "interval = "+interval);
+                Log.i(T, "received interval = "+interval);
                 pref.commit();
-                boolean hasSong = (is.read()==1)?true:false;
-                Log.i(T, "has song: "+hasSong);
-                if(hasSong) {
-                    readSong(is, os);
+
+                Thread t;
+
+                is.read(intBytes);
+                int hasSongs = Utils.bytesToInt(intBytes);
+                if(hasSongs == TRUE) {
+                    t = new Thread() {
+                        @Override
+                        public void run() {
+                            String songsInfoQuery = "listofnewsharedsongs=true&id="+Utils.getUserUniqueId();
+                            try {
+                                HttpConThread con = new HttpConThread(songsInfoQuery);
+                                con.connect();
+                                InputStream is = con.is;
+
+                                Intent downloadSongIntent = new Intent(Listener.this, Songs.class);
+                                downloadSongIntent.putExtra(DOWNLOAD_SONG, TRUE);
+                                PendingIntent downloadSongPending = PendingIntent.getBroadcast(getApplicationContext(), 0, downloadSongIntent, flag);
+
+                                Intent refuseSongIntent = new Intent(Listener.this, Songs.class);
+                                refuseSongIntent.putExtra(DOWNLOAD_SONG, TRUE);
+                                PendingIntent refuseSongPending = PendingIntent.getBroadcast(getApplicationContext(), 0, refuseSongIntent, flag);
+
+                                byte[] intBytes = new byte[4];
+                                is.read(intBytes);
+                                int songs = Utils.bytesToInt(intBytes);
+                                ItemInfo[] ii = new ItemInfo[songs];
+                                for (int i = 0; i < songs; i++) {
+
+                                    byte[] bytes = new byte[4];
+                                    is.read(bytes);
+                                    ii[i].databaseId = bytes;
+
+                                    int size = Utils.readInt(is);
+                                    bytes = new byte[size];
+                                    is.read(bytes);
+                                    ii[i].songUrl = new String(bytes);
+
+                                    size = Utils.readInt(is);
+                                    bytes = new byte[size];
+                                    is.read(bytes);
+                                    ii[i].title = new String(bytes);
+
+                                    bytes = new byte[8];
+                                    is.read(bytes);
+                                    ii[i].dateMillis = Utils.bytesToInt(bytes);
+
+                                    size = Utils.readInt(is);
+                                    bytes = new byte[size];
+                                    is.read(bytes);
+                                    ii[i].message = new String(bytes);
+
+                                    size = Utils.readInt(is);
+                                    bytes = new byte[size];
+                                    is.read(bytes);
+                                    ii[i].subTitle = new String(bytes);
+
+                                    size = Utils.readInt(is);
+                                    bytes = new byte[size];
+                                    is.read(bytes);
+                                    ii[i].senderId = bytes;
+
+                                    downloadSongIntent.putExtra(SONG_DATABASE_ID, ii[i].databaseId);
+                                    downloadSongIntent.putExtra(SONG_ID, ii[i].songUrl);
+                                    downloadSongIntent.putExtra(TITLE, ii[i].title);
+                                    refuseSongIntent.putExtra(SONG_DATABASE_ID, ii[i].databaseId);
+
+                                    NotificationCompat.Builder builder = new NotificationCompat
+                                            .Builder(getApplicationContext())
+                                            .setLargeIcon(ii[i].image)
+                                            .setContentTitle(ii[i].title)
+                                            .setContentText(ii[i].subTitle)
+                                            .setContentInfo(ii[i].message)//TODO note sure what is contentInfo
+                                            //TODO add drawable if necessary
+                                            .addAction(new NotificationCompat.Action(
+                                                    0,
+                                                    getString(R.string.DOWNLOAD_SONG),
+                                                    downloadSongPending))
+                                            .addAction(new NotificationCompat.Action(
+                                                    0,
+                                                    getString(R.string.REFUSE),
+                                                    refuseSongPending));
+
+                                    manger.notify(0, builder.build());
+                                }
+
+                                for (int i = 0; i < songs; i++) {
+                                    ii[i].image = Utils.getThumbnailBitmap(ii[i].songUrl);
+                                }
+                                database.insertSongsItemsInfo(ii);
+
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    };
+                    t.start();
                 }
-                //app_level pro
+
+                is.read(intBytes);
+                int hasRequests = Utils.bytesToInt(intBytes);
+                if(hasRequests == TRUE) {
+                    t = new Thread() {
+                        @Override
+                        public void run() {
+                            String songsInfoQuery = "listofnewrequests=true&id="+Utils.getUserUniqueId();
+                            try {
+                                HttpConThread con = new HttpConThread(songsInfoQuery);
+                                con.connect();
+                                InputStream is = con.is;
+
+                                Intent requestAcceptedIntent = new Intent(Listener.this, Requests.class);
+                                requestAcceptedIntent.putExtra(PEERSHIP_REQUEST_ACCPTED, TRUE);
+                                PendingIntent requestAcceptedPending = PendingIntent.getBroadcast(getApplicationContext(), 0, requestAcceptedIntent, flag);
+
+                                Intent requestRefusedIntent = new Intent(Listener.this, Requests.class);
+                                requestRefusedIntent.putExtra(PEERSHIP_REQUEST_ACCPTED, FALSE);
+                                PendingIntent requestRefusedPending = PendingIntent.getBroadcast(getApplicationContext(), 0, requestRefusedIntent, flag);
+
+                                byte[] intBytes = new byte[4];
+                                is.read(intBytes);
+                                int requests = Utils.bytesToInt(intBytes);
+                                ItemInfo[] ii = new ItemInfo[requests];
+                                // note the same code repeated at Request
+                                for (int i = 0; i < requests; i++) {
+
+                                    int size = Utils.readInt(is); //name
+                                    byte[] bytes = new byte[size];
+                                    is.read(bytes);
+                                    ii[i].title = new String(bytes);
+
+                                    size = Utils.readInt(is); //email
+                                    bytes = new byte[size];
+                                    is.read(bytes);
+                                    ii[i].subTitle = new String(bytes);
+
+                                    size = Utils.readInt(is);
+                                    bytes = new byte[size];
+                                    is.read(bytes);
+                                    ii[i].senderId = bytes; // (no need to retrieve senderIds from give parameter ids) protocol will change send flag instead of ids
+
+                                    size = Utils.readInt(is);
+                                    bytes = new byte[size];
+                                    is.read(bytes);
+                                    ii[i].image = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+
+                                    // send broadcast to Requests to either accept, refuse requests
+                                    // accept with acknowledge the server, and update local database as will
+                                    // accepted requests will only be used to send songs, and should have separate table.
+                                    // .. update will remove local requests row, and insert new peers row
+                                    // .. remove remove requests table row with givin senderId (which is unique)
+
+                                    requestAcceptedIntent.putExtra(PEER_REQUEST_SENDER_ID, ii[i].senderId);
+                                    requestRefusedIntent.putExtra(PEER_REQUEST_SENDER_ID, ii[i].senderId);
+
+                                    //TODO notification must dismiss after any btn clicked
+                                    NotificationCompat.Builder builder = new NotificationCompat
+                                            .Builder(getApplicationContext())
+                                            .setLargeIcon(ii[i].image)
+                                            .setContentTitle(ii[i].title)
+                                            .setContentText(ii[i].subTitle)
+                                            //TODO add drawable if necessary
+                                            .addAction(new NotificationCompat.Action(
+                                                    0,
+                                                    getString(R.string.ACCEPT_PEERSHIP),
+                                                    requestAcceptedPending))
+                                            .addAction(new NotificationCompat.Action(
+                                                    0,
+                                                    getString(R.string.REFUSE),
+                                                    requestRefusedPending));
+
+                                    manger.notify(0, builder.build());
+                                }
+                                database.insertRequestsItemsInfo(ii);
+
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    };
+                    t.start();
+                }
+
+                is.read(intBytes);
+                int totalDownloads = Utils.bytesToInt(intBytes);
+                Log.i(T, "total Downloads "+totalDownloads);
+                if (totalDownloads > 0 && totalDownloads != pastTotalDownloads) {
+                    Log.i(T, "updating drawer panel with server num of total downloads");
+                    updateDownloads(totalDownloads);
+                    pastTotalDownloads = totalDownloads;
+                }
+
+                is.read(intBytes);
+                int numOfSongsToDownload = Utils.bytesToInt(intBytes);
+                Log.i(T, "num of totalDownloads "+numOfSongsToDownload);
+                if (numOfSongsToDownload > 0) {
+                    wasDownloading = true; // will be true in a few secs
+
+                    is.read(intBytes);
+                    int songsListBytesSize = Utils.bytesToInt(intBytes);
+
+                    byte[] songsNameBytes = new byte[songsListBytesSize];
+                    is.read(songsNameBytes);
+                    String songsInfo = new String(songsNameBytes);
+                    Log.i(T, "songs info in ISO "+new String(songsNameBytes));
+                    if (!pastSongsInfo.equals(songsInfo)) {
+                        updateDownloadList(songsInfo);
+                        pastSongsInfo = songsInfo;
+                    }
+                    readSong(is, os, songsInfo.split("\n")[0]);
+
+                } else {
+                    if(wasDownloading && lastDownloadedSongId != null) {
+                        Log.i(T, "updating downloading ++num, list(to \"\") after download is done, num "+pastTotalDownloads);
+                        updateDownloads(++pastTotalDownloads);
+                        updateDownloadList("");
+                    }
+                }
+
             } catch (IOException io) {
                 io.printStackTrace();
             } finally {
@@ -177,24 +421,16 @@ public class Listener extends IntentService implements Consts {
             }
         }
 
-        public void readSong(InputStream is, OutputStream os) throws IOException {
-            byte[] songNameSizeBytes = new byte[4];
-            is.read(songNameSizeBytes);
-            int songNameSize = Utils.bytesToInt(songNameSizeBytes);
-            Log.i(T, "#1# songNameSize read = "+songNameSize+"b");
+        public void readSong(InputStream is, OutputStream os, String urlAndName) throws IOException {
 
-            byte[] songNameBytes = new byte[songNameSize];
-            is.read(songNameBytes);
-            String songName = new String(songNameBytes);
-            Log.i(T, "#2# songName = "+songName);
-
+            String[] urlNameInfo = urlAndName.split("/");
             byte[] songSizeBytes = new byte[4];
             is.read(songSizeBytes);
             int songSize = Utils.bytesToInt(songSizeBytes);
-            Log.i(T, "#3# songSize = "+songSize+"b");
+            Log.i(T, " songSize = "+songSize+"b");
 
             byte[] songByte = new byte[songSize];
-            DownloadSong downloadSong = new DownloadSong(Listener.this, is, songByte, songName);
+            DownloadSong downloadSong = new DownloadSong(Listener.this, is, songByte, new String(urlNameInfo[1].getBytes(), ISO_8859_1)+".webm", urlNameInfo[0]);
 
             synchronized (songByte) {
                 try {
@@ -206,9 +442,9 @@ public class Listener extends IntentService implements Consts {
 
             os.write(downloadSong.successed()?DOWNLOAD_SUCCESSED:DOWNLOAD_FAILED);
 
-            Log.i(T, "#4# song read");
+            Log.i(T, "song read, with success "+downloadSong.successed());
             String path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC).getPath();
-            path = path+ "/" + SONG_PREFIX + songName;
+            path = path+ "/" + urlNameInfo[1];
             File f = new File(path);
             f.createNewFile();
             FileOutputStream fos = new FileOutputStream(f);
@@ -230,17 +466,18 @@ public class Listener extends IntentService implements Consts {
         private int updatePoint;
         private NotificationManager notMan;
         private boolean successed = true;
-        public DownloadSong(Context context, InputStream inputStream, byte[] sb, String songName) {
+        private String songId;
+        public DownloadSong(Context context, InputStream inputStream, byte[] sb, String songName, String songId) {
             is = inputStream;
             bytes = sb;
             size = bytes.length;
             updatePoint = size/50; // update notification every updatePoint of bytes;
+            this.songId = songId;
             try {
                 notBuilder = new NotificationCompat.Builder(context)
                         .setSmallIcon(R.drawable.ic_menu_camera)
-                        .setContentTitle(getString(R.string.DOWNLOADING_NOTIFY_TITLE))
-                        .setContentText(new StringBuilder(songName).append("  ")
-                                .append(String.format("%.2f", (float) size / (1024 * 1024))).append(" MB").toString())
+                        .setContentTitle(getString(R.string.DOWNLOADING_NOTIFY_TITLE)+"  "+String.format("%.2f", (float) size / (1024 * 1024))+" MB")
+                        .setContentText(songName)
                         .setProgress(size, 0, false)
                         .setAutoCancel(true);
 
@@ -270,10 +507,15 @@ public class Listener extends IntentService implements Consts {
                     }
                 }
                 if (size > 0) {
-                    Log.i(T, "song downloaded");
+                    Log.i(T, "song downloaded, update totalDownloads to "+(pastTotalDownloads+1)
+                            + " remove downloaded song");
                     notBuilder.setContentText(getString(R.string.DOWNLOAD_DONE));
                     notBuilder.setProgress(0, 0, false);
                     notMan.notify(0, notBuilder.build());
+                    lastDownloadedSongId = songId;
+                    updateDownloads(++pastTotalDownloads);
+                    updateDownloadList(removeDownloadedSongAndClean(songId));
+
                 }
             } catch (Exception e ) {
                 e.printStackTrace();
@@ -289,7 +531,5 @@ public class Listener extends IntentService implements Consts {
             return successed;
         }
     }
-
-
 
 }

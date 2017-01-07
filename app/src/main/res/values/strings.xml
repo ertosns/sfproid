@@ -34,4 +34,13 @@
     <string name="LISTENER_IS_OFF">make sure Listener is ON, for song to be downloaded</string>
     <string name="LISTENER_ACTIVATED">Listener activated</string>
     <string name="LISTENER_DEACTIVATED">Listener deactivated, you won\'t be able to receive any remote songs</string>
+    <string name="DOWNLOADS_NUM">Downloads: </string>
+    <string name="YOU_NEED_TO_LOGIN_FIRST">you must login before download!</string>
+    <string name="DOWNLOAD_SONG">Download</string>
+    <string name="REFUSE">refuse</string>
+    <string name="ACCEPT_PEERSHIP">accept</string>
+    <string name="SHARE_SONG_WITH_PEERS">send</string>
+    <string name="SEND_PEER_SHIP_REQUEST">add peer</string>
+    <string name="SHARE_SONGS_DIALOG">share with</string>
+
 </resources>
