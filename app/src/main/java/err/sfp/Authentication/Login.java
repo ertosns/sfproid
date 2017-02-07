@@ -13,6 +13,8 @@ import android.widget.TextView;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import err.sfp.Consts;
+import err.sfp.Database.Database;
+import err.sfp.Database.Helper;
 import err.sfp.HttpConThread;
 import err.sfp.Main;
 import err.sfp.R;
@@ -30,7 +32,7 @@ public class Login extends AppCompatActivity implements Consts {
     @BindView(R.id.signup) TextView signup;
     //@BindView(R.id.login_err) TextView err;
     SharedPreferences sharedPreferences = null;
-    SharedPreferences.Editor pref = null;
+    SharedPreferences.Editor edit = null;
     ProgressDialog progressDialog = null;
 
     @Override
@@ -39,8 +41,8 @@ public class Login extends AppCompatActivity implements Consts {
         setContentView(R.layout.login);
         ButterKnife.bind(this);
         progressDialog = new ProgressDialog(Login.this);
-        sharedPreferences = getSharedPreferences(APP_PREFERENCES, MODE_PRIVATE);
-        pref = sharedPreferences.edit();
+        sharedPreferences = Main.sharedPreferences;
+        edit = sharedPreferences.edit();
         login.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -50,11 +52,12 @@ public class Login extends AppCompatActivity implements Consts {
                     login.setError(getString(R.string.NO_CONNECTIVITY));
                     return;
                 }
+
                 String inputPassword = String.valueOf(password.getText());
                 if(inputPassword == null) badPass();
                 boolean validPass = Utils.validatePass(inputPassword);
                 if(!validPass) {
-                    Log.i(T, "not a valid pass");
+                    Log.i(T, "not a valid pass "+inputPassword);
                     badPass();
                     return;
                 }
@@ -63,7 +66,7 @@ public class Login extends AppCompatActivity implements Consts {
                 if(inputEmail == null) badEmail();
                 boolean validEmail = Utils.validateEmail(inputEmail);
                 if(!validEmail) {
-                    Log.i(T, "not a valid email");
+                    Log.i(T, "not a valid email "+inputEmail);
                     badEmail();
                     return;
                 }
@@ -99,39 +102,59 @@ public class Login extends AppCompatActivity implements Consts {
         email.setError(getString(R.string.BAD_EMAIL));
     }
 
-    public int login(String url) {
-        HttpConThread hct = new HttpConThread(url);
+    public int login(String url)
+    {
         progressDialog.setIndeterminate(true);
         progressDialog.setMessage("Logging...");
         progressDialog.show();
-        hct.start();
-        //TODO SET STYLE
-        synchronized (hct) {
-            try {
+
+        HttpConThread hct = new HttpConThread(url);
+        synchronized (hct)
+        {
+            try
+            {
                 hct.wait();
-            } catch (InterruptedException ie) {
+            }
+            catch (InterruptedException ie)
+            {
                 ie.printStackTrace();
             }
         }
-        progressDialog.dismiss();
 
         int code = hct.code;
-        if(code == SUCCESS_CODE) {
-            pref.putString(UNIQUE_ID,  hct.getResponseString());
-            pref.putBoolean(SIGNED, true);
-            pref.commit();
-            Log.i(T, "unique id read");
-            Main.update();
-            Utils.mainActivityIntent(Login.this);
+        progressDialog.dismiss();
+        if (code == SUCCESS_CODE)
+        {
+            // used in Database Helper class, should be set before initDatabase();
+            String uniqueId = hct.getResponseString();
+            if(uniqueId != null && !uniqueId.equals(""))
+            {
+                Log.i(T, "previous uniqueId "+Main.sharedPreferences.getString(UNIQUE_ID, null)
+                        +"\ncurrent uniqueId "+uniqueId);
+                Main.edit.putString(UNIQUE_ID, uniqueId);
+                Main.edit.putBoolean(SIGNED, true);
+                Main.edit.commit();
+                Log.i(T, "unique id read");
+                Utils.updateMainAndUtils();
+                Utils.initPanel();
+                if (!uniqueId.equals(Main.sharedPreferences.getString(UNIQUE_ID, "")))
+                {
+                    // change helper of Database, new helper for client database.
+                    Utils.getRequestsFromServer(NON_NEW_REQUESTS, null, false, false);
+                    Utils.getSongsFromServer(UNRESPONDED_SONGS, null, false);
+                }
+                Utils.mainActivityIntent(Login.this);
+            }
         }
         return code;
     }
 
-    public String getLoginUrl(String pass, String email) {
-        return new StringBuilder("login=true&")
+    public String getLoginUrl(String pass, String email)
+    {
+        return new StringBuilder("login=true&mobile=true&")
                 .append(Utils.base64Url("pass")).append("=")
-                .append(Utils.base64(pass)).append("&")
+                .append(Utils.base64Url(pass)).append("&")
                 .append(Utils.base64Url("email")).append("=")
-                .append(Utils.base64(email)).toString();
+                .append(Utils.base64Url(email)).toString();
     }
 }

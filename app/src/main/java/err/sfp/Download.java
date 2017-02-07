@@ -1,17 +1,22 @@
 package err.sfp;
 
 import android.Manifest;
+import android.app.SearchManager;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.view.MenuItemCompat;
+import android.support.v7.widget.SearchView;
 import android.support.v7.widget.SwitchCompat;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -42,6 +47,10 @@ import butterknife.BindView;
 import butterknife.ButterKnife;
 import err.sfp.Authentication.Login;
 import err.sfp.Authentication.Signup;
+import err.sfp.SocialNetworking.Requests;
+import err.sfp.SocialNetworking.Search;
+import err.sfp.SocialNetworking.SongInfoActivity;
+import err.sfp.SocialNetworking.Songs;
 
 //TODO menu, floating btn, intents flags
 //TODO if givin search string is song url view download btn as the only option
@@ -79,7 +88,7 @@ public class Download extends AppCompatActivity
         setContentView(R.layout.activity_download);
         ButterKnife.bind(this);
 
-        sharedPreferences = getSharedPreferences(APP_PREFERENCES, MODE_PRIVATE);
+        sharedPreferences = Main.sharedPreferences;
         pref = sharedPreferences.edit();
         listenerService = new Intent(this, Listener.class);
         searchTv = (TextView) findViewById(R.id.search_tv);
@@ -92,8 +101,7 @@ public class Download extends AppCompatActivity
         } catch (IOException e) {
             e.printStackTrace();
         }
-        updateListOfDownloads();
-        updateDownloads();
+
         IntentFilter filter = new IntentFilter(LISTENER_MESSAGES_INTNET_FILTER);
         filter.addAction(LISTENER_MESSAGES_INTNET_FILTER);
         registerReceiver(listenerBroadCast, filter);
@@ -196,10 +204,12 @@ public class Download extends AppCompatActivity
             login.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
+                    Log.i(T, "logout");
                     logout();
                 }
             });
         } else {
+            Log.i(T, "logout Mode");
             logoutMode();
             login.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -255,17 +265,25 @@ public class Download extends AppCompatActivity
         openListener();
     }
 
-    public void openListener() {
-        if(signedUp() && rwPermissionsGranted() && isListeningToggleOn()) {
+    public void openListener()
+    {
+        if (signedUp() && rwPermissionsGranted() && isListeningToggleOn())
+        {
             Log.i(T, "start Listener Service");
             listenerService.putExtra(UNIQUE_ID, sharedPreferences.getString(UNIQUE_ID, null));
-            if(isListeningToggleOn()) stopService(listenerService); //TODO diff between boths wasy of killing.
+            if (isListeningToggleOn())
+            {
+                Log.i(T, "stopping previous service");
+                stopServiceBroadcast();
+                stopService(listenerService); //TODO diff between both ways of killing.
+            }
             startService(listenerService);
         }
     }
 
 
-    public void stopServiceBroadcast() {
+    public void stopServiceBroadcast()
+    {
         Log.i(T, "stopping service");
         Intent intent = new Intent(SHAREDPREFERENCES_ACTION_FILTER);
         intent.setAction(SHAREDPREFERENCES_ACTION_FILTER);
@@ -291,22 +309,43 @@ public class Download extends AppCompatActivity
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
+    public boolean onCreateOptionsMenu(Menu menu)
+    {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.download, menu);
+
+        MenuItem searchItem = menu.findItem(R.id.search);
+        SearchView searchView = (SearchView) MenuItemCompat.getActionView(searchItem);
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                return false;
+            }
+        });
+        SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
+        ComponentName comName = new ComponentName(this, Search.class);
+        searchView.setSearchableInfo(searchManager.getSearchableInfo(comName));
+        searchView.setIconifiedByDefault(false);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
+        if (id == R.id.sharedsongs) {
+            Intent intent = new Intent(this, Songs.class);
+            //TODO set flag
+            startActivity(intent);
+        } else if (id == R.id.sharedrequests) {
+            Intent intent = new Intent(this, Requests.class);
+            //TODO set flag
+            startActivity(intent);
         }
 
         return super.onOptionsItemSelected(item);
@@ -393,7 +432,15 @@ public class Download extends AppCompatActivity
                         Log.i(T, "listener is off");
                         Toast.makeText(Download.this, getString(R.string.LISTENER_IS_OFF), Toast.LENGTH_LONG).show();
                     }
-                    downloadSong(client.items.get(i).videoId, client.items.get(i).title);
+                    //downloadSong(client.items.get(i).videoId, client.items.get(i).title);
+                    Intent songInfoActivity = new Intent(Download.this, SongInfoActivity.class);
+                    songInfoActivity.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    songInfoActivity.putExtra(SONG_INFO_ACTIVITY_BITMAP, client.items.get(i).thumbnail);
+                    songInfoActivity.putExtra(SONG_INFO_ACTIVITY_TITLE, client.items.get(i).title);
+                    songInfoActivity.putExtra(SONG_INFO_ACTIVITY_URL, client.items.get(i).videoId);
+                    startActivity(songInfoActivity);
+                    //TODO setSongIinfoFlag
+
                 }
         });
         Log.i(T, "populatingGridThread method finished");
@@ -429,13 +476,14 @@ public class Download extends AppCompatActivity
             listOfDownloadingSongsIS = openFileInput(listOfDownloadingSongsFile);
             Scanner scan  = new Scanner(listOfDownloadingSongsIS);
             while(scan.hasNext()) {
+
                 String[] songInfo = scan.nextLine().split("/");
+                //TODO (FIX) RETURN OUT OF BOUNDS
                 Log.i(T, "songInfo[0] "+songInfo[0]+" songInfo[1] "+songInfo[1]);
                 String nameSeg = songInfo[1]+"\n";
                 listOfNames.append(nameSeg);
             }
             listOfDownloadings.setText(listOfNames.toString());
-            listOfNames = null;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -510,14 +558,14 @@ public class Download extends AppCompatActivity
         }
     }
 
-    public void downloadSong(String songId, String title) {
+    public void downloadSong(String songId, String title)
+    {
         int res = Utils.downloadSong(songId, title);
         Toast.makeText(Download.this, (res==200)?getString(R.string.WILL_BE_DOWNLOADED_SOON):getString(R.string.SERVER_ERROR_TRY_AGAIN), Toast.LENGTH_LONG).show();
     }
 
-
-
-    public void logout() {
+    public void logout()
+    {
         Log.i(T, "logging out");
         stopServiceBroadcast();
         pref.putBoolean(SIGNED, false);
@@ -529,21 +577,33 @@ public class Download extends AppCompatActivity
         startActivity(intent);
     }
 
-    public  void logoutMode() {
+    public  void logoutMode()
+    {
         Log.i(T, "logout mode");
+        Main.logout = true;
+
         downloads.setVisibility(View.INVISIBLE);
         listening.setVisibility(View.INVISIBLE);
         listOfDownloadings.setVisibility(View.INVISIBLE);
-        login.setText(getString(R.string.LOG_IN));
         signup.setVisibility(View.VISIBLE);
+
+        login.setText(getString(R.string.LOG_IN));
     }
 
-    public void loginMode() {
+    public void loginMode()
+    {
         Log.i(T, "login mode");
+
+
+        updateListOfDownloads();
+        updateDownloads();
+
         downloads.setVisibility(View.VISIBLE);
         listening.setVisibility(View.VISIBLE);
         listOfDownloadings.setVisibility(View.VISIBLE);
-        login.setText(R.string.LOG_OUT);
         signup.setVisibility(View.INVISIBLE);
+
+        login.setText(R.string.LOG_OUT);
+
     }
 }

@@ -71,7 +71,7 @@ public class Signup extends AppCompatActivity implements Consts{
                 if(inputPassword == null) badPass();
                 boolean validPass = Utils.validatePass(inputPassword);
                 if(!validPass) {
-                    Log.i(T, "not a valid Pass");
+                    Log.i(T, "not a valid Pass "+inputPassword);
                     badPass();
                     return;
                 }
@@ -80,7 +80,7 @@ public class Signup extends AppCompatActivity implements Consts{
                 if(inputEmail == null) badEmail();
                 boolean validEmail = Utils.validateEmail(inputEmail);
                 if(!validEmail) {
-                    Log.i(T, "not a valid email");
+                    Log.i(T, "not a valid email "+inputEmail);
                     badEmail();
                     return;
                 }
@@ -124,8 +124,6 @@ public class Signup extends AppCompatActivity implements Consts{
     public int signup(String url) {
         progressDialog.show();
         HttpConThread hct = new HttpConThread(url);
-        hct.start();
-
         synchronized (hct) {
             try {
                 hct.wait();
@@ -133,12 +131,16 @@ public class Signup extends AppCompatActivity implements Consts{
                 ie.printStackTrace();
             }
         }
+
         int code = hct.code;
         if(code == SUCCESS_CODE) {
             pref.putString(UNIQUE_ID,  hct.getResponseString());
+
             pref.putBoolean(SIGNED, true);
             pref.commit();
             Log.i(T, "unique id read");
+            Utils.updateMainAndUtils();
+            Utils.initPanel();
             Utils.mainActivityIntent(Signup.this);
         }
         progressDialog.dismiss();
@@ -146,12 +148,12 @@ public class Signup extends AppCompatActivity implements Consts{
     }
 
     public String getSignupUrl(String name, String pass, String email) {
-            return new StringBuilder("signup=true&")
+            return new StringBuilder("signup=true&mobile=true&")
                     .append(Utils.base64Url("name")).append("=")
-                    .append(Utils.base64(name)).append("&")
+                    .append(Utils.base64Url(name)).append("&")
                     .append(Utils.base64Url("pass")).append("=")
-                    .append(Utils.base64(pass)).append("&")
+                    .append(Utils.base64Url(pass)).append("&")
                     .append(Utils.base64Url("email")).append("=")
-                    .append(Utils.base64(email)).toString();
+                    .append(Utils.base64Url(email)).toString();
     }
 }

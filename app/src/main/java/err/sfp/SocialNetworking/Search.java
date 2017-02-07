@@ -1,20 +1,15 @@
 package err.sfp.SocialNetworking;
 
+import android.app.SearchManager;
 import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
-import android.view.View;
-import android.widget.Button;
+import android.util.Log;
 import android.widget.ListView;
-import android.widget.TextView;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Random;
 import err.sfp.Consts;
-import err.sfp.Database.Database;
-import err.sfp.Download;
 import err.sfp.HttpConThread;
 import err.sfp.Main;
 import err.sfp.R;
@@ -24,72 +19,77 @@ import err.sfp.Utils;
  * Created by Err on 17-1-4.
  */
 
-public class Search extends AppCompatActivity implements Consts {
+public class Search extends AppCompatActivity implements Consts
+{
 
     ListView listView;
-    Database database;
-    Toolbar toolbar;
-    Button search;
-    TextView searchQuery;
     Random random;
     ItemInfo[] ii;
     int lastLimitEnd = 0;
     private final static int SEARCH_LIMIT = 10;
 
     @Override
-    protected void onCreate(Bundle onSaveInstance) {
+    protected void onCreate (Bundle onSaveInstance)
+    {
         super.onCreate(onSaveInstance);
 
-        setContentView(R.layout.search);
+        setContentView(R.layout.crudelist);
         random = Main.random;
-        listView  = (ListView) findViewById(R.id.songslv);
-        toolbar = (Toolbar) findViewById(R.id.songstoolbar);
-        searchQuery = (TextView) findViewById(R.id.searchquery);
+        listView  = (ListView) findViewById(R.id.listview);
 
-        setSupportActionBar(toolbar);
-        toolbar.setNavigationOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(Search.this, Download.class);
-                //TODO set flag
-                startActivity(intent);
-            }
-        });
-
-        database = Main.database;
-        search.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                new Thread(new Search.InitList(Search.this, listView, searchQuery.getText().toString())).start();
-            }
-         });
-
+        handleIntent(getIntent());
     }
 
-    class InitList implements  Runnable {
+    public void handleIntent (Intent intent)
+    {
+        if (Intent.ACTION_SEARCH.equals(intent.getAction()))
+        {
+            String query = intent.getStringExtra(SearchManager.QUERY);
+            Log.i(T, "search query "+query);
+            new Search.InitList(Search.this, listView, query).init();
+        }
+    }
+
+    class InitList
+    {   //TODO can't notify adapter not from main thread
         Search search;
         ListView list;
         String query;
         SongUserAdapter sua;
 
-        public InitList(Search search, ListView list, String query) {
+        public InitList(Search search, ListView list, String query)
+        {
             this.search = search;
             this.list = list;
             this.query = query;
-            ii = new ItemInfo[0];
-        };
+            ii = ItemInfo.initArray(0);
+        }
 
-        @Override
-        public void run() {
-            if (sua == null) {
-                sua =  new SongUserAdapter(search, ii, SongUserAdapter.REQUESTS);
+
+        public void init()
+        {
+            if (sua == null)
+            {
+                sua =  new SongUserAdapter(search, ii, SongUserAdapter.SEARCH, listView);
                 listView.setAdapter(sua);
+                Log.i(T, "init adapter with ItemsInfo with len "+ii.length);
             }
 
-            ii = (ItemInfo[]) Utils.mergeObjectArrays(ii, searchUsers(query, lastLimitEnd, SEARCH_LIMIT));
-            sua.itemInfo = ii;
-            sua.notifyDataSetChanged();
+            int iiLen = ii.length;
+            ItemInfo[] searchII = searchUsers(query, lastLimitEnd, SEARCH_LIMIT);
+            Log.i(T, "searched results "+searchII.length);
+            ItemInfo[] newII = ItemInfo.initArray(searchII.length+iiLen);
 
+            for(int i = 0; i < iiLen; i++)
+                newII[i] = ii[i];
+            for(int i = 0; i < searchII.length; i++)
+                newII[i+iiLen] = searchII[i];
+
+            ii = newII;
+            sua.itemInfo = ii;
+            Log.i(T, "ItemsInfo updated with new results, total ItemsInfo with len = "+ii.length);
+            sua.notifyDataSetChanged();
+            Log.i(T, "notify adapter with new itemInfos");
         }
     }
 
@@ -97,51 +97,70 @@ public class Search extends AppCompatActivity implements Consts {
         // new app install.
         // TODO (fun) instant search|query((general) through app) {server, database}?!
         // TODO store last searched index
-
-        String randomStr = "abcdefghigklmnopqrstuvwxyz";
+        // prevent queries with url-banned chars
+        if(!(query.matches("[a-zA-Z0-9]+") || Utils.validateEmail(query)))  return ItemInfo.initArray(0);
+        Log.i(T, "perform search Query "+query+" with limitStart = "+limitstart+" and limit = "+limit);
+        String alphabet = "abcdefghigklmnopqrstuvwxyz";
         String emailLikeRegex = ".*@.*\\..*";
         StringBuilder searchQueryUrl = new StringBuilder(PROTOCOL).append(HOST).append(PATH);
-        if(query.matches(emailLikeRegex)) searchQueryUrl.append("searchbyemail");
+        boolean searchByEmail = false;
+        if(query.matches(emailLikeRegex)) {
+            searchQueryUrl.append("searchbyemail");
+            searchByEmail = true;
+        }
         else searchQueryUrl.append("searchbyname");
-        searchQueryUrl.append("=true&query=")
-                .append((query=="")?randomStr.charAt((int)(random.nextFloat()*25)):query)
+        searchQueryUrl.append("=true&mobile=true&query=")
+                .append((query.equals(""))?alphabet.charAt((int)(random.nextFloat()*25)):query)
                 .append("&id=").append(Utils.getUserUniqueId())
                 .append("&limitstart=").append(limitstart)
                 .append("&limit=").append(limit);
-
-        //TODO set limit, continue
+        Log.i(T, "searchQueryUrl: "+searchQueryUrl);
         //TODO INCREMENT LASTlIMIT WITH RETURNED SEA;RCH NUM
-
+        ItemInfo[] ii = null;
         try {
             HttpConThread con = new HttpConThread(searchQueryUrl.toString());
-            InputStream is = con.is;
-            byte[] intBytes = new byte[4];
-            is.read(intBytes);
-            int queryNum = Utils.bytesToInt(intBytes);
+            synchronized (con) {
+                Log.i(T, "waiting for connection-response");
+                con.wait();
+                Log.i(T, "connection done");
+            }
 
-            ii = new ItemInfo[queryNum];
-            // note the same code repeated at Request
+            InputStream is = con.is;
+            int queryNum = 0;
+            if (searchByEmail) queryNum = 1;
+            else {
+                byte[] intBytes = new byte[4];
+                is.read(intBytes);
+                queryNum = Utils.bytesToInt(intBytes);
+            }
+            Log.i(T, "numOfQueries " + queryNum);
+            ii = ItemInfo.initArray(queryNum);
+            Log.i(T, "reading queries");
             for (int i = 0; i < queryNum; i++) {
 
                 int size = Utils.readInt(is); //name
+                Log.i(T, "title size "+Utils.formatBytes(size));
                 byte[] bytes = new byte[size];
                 is.read(bytes);
                 ii[i].title = new String(bytes);
 
                 size = Utils.readInt(is);
+                Log.i(T, "image size "+Utils.formatBytes(size));
                 bytes = new byte[size];
                 is.read(bytes);
                 ii[i].image = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
 
                 size = Utils.readInt(is);
+                Log.i(T, "senderId size "+Utils.formatBytes(size));
                 bytes = new byte[size];
                 is.read(bytes);
                 ii[i].senderId = bytes; // (no need to retrieve senderIds from give parameter ids) protocol will change send flag instead of ids
             }
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
+        Log.i(T, "done reading queries");
         return ii;
     }
 

@@ -27,5 +27,13 @@ public class ItemInfo {
         this.senderId = senderId;
         this.songUrl = songUrl;
     }
+
+    public static ItemInfo[] initArray(int size) {
+        ItemInfo[] ii = new ItemInfo[size];
+        for(int i = 0; i < size; i++)
+            ii[i] = new ItemInfo(null, null, null, null, 0, new byte[0], new byte[0], null);
+
+        return ii;
+    }
     // setters, getters are more expensive than variables (in Android)
 }

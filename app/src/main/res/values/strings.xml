@@ -42,5 +42,8 @@
     <string name="SHARE_SONG_WITH_PEERS">send</string>
     <string name="SEND_PEER_SHIP_REQUEST">add peer</string>
     <string name="SHARE_SONGS_DIALOG">share with</string>
-
+    <string name="SEARCH_LABEL">peers</string>
+    <string name="WATCH_ON_YOUTUBE">watch on youtube</string>
+    <string name="PEER_SEND_REQUEST">asks to send you songs</string>
+    <string name="SEND_SONG_MESSAGE">write message</string>
 </resources>

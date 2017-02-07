@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:gravity="center"
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:minWidth="80dp"
+        android:minHeight="80dp"
+        android:layout_height="wrap_content"
+        android:id="@+id/image"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:minHeight="40dp"
+        android:id="@+id/title"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_marginTop="20dp"
+        android:orientation="horizontal">
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/download"
+            android:text="@string/DOWNLOAD_SONG"
+            android:layout_margin="8dp"
+            style="@style/btn"/>
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/watchonyoutube"
+            android:layout_margin="8dp"
+            android:text="@string/WATCH_ON_YOUTUBE"
+            style="@style/btn"/>
+    </LinearLayout>
+
+    <Button
+        android:layout_width="wrap_content"
+        android:minWidth="200dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="40dp"
+        android:id="@+id/share"
+        android:text="@string/SHARE_SONG_WITH_PEERS"
+        style="@style/btn"/>
+</LinearLayout>

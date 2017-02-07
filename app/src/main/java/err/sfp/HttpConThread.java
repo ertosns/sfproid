@@ -10,38 +10,45 @@ import java.net.URL;
 import java.util.Scanner;
 
 /**
- * Created by root on 16-12-7.-
+ * Created by Err on 16-12-7.-
  */
 
 public class HttpConThread extends Thread implements Consts{
-    String url = null;
     public int code = 0;
     public InputStream is = null;
-    public OutputStream os = null;
+    String url = null;
     HttpURLConnection con = null;
+    byte[] postBytes = null;
 
     public HttpConThread(String url) {
-        this.url = url;
+        this.url = url.startsWith("http")?url:PROTOCOL+HOST+PATH+url;
+        this.start();
+    }
+
+    public HttpConThread(String url, byte[] outputStreamBytes) {
+        this.url = url.startsWith("http")?url:PROTOCOL+HOST+PATH+url;
+        this.postBytes = outputStreamBytes;
         this.start();
     }
 
     @Override
     public void run() {
         try {
+            Log.i(T, "connecting");
             con = (HttpURLConnection) new URL(url).openConnection();
-            os = con.getOutputStream();
-            is = con.getInputStream();
-        } catch (IOException io) {
-            io.printStackTrace();
-        }
-
-    }
-
-    public void connect() {
-        try {
+            if (postBytes != null) {
+                Log.i(T, "post method with body of len "+postBytes.length);
+                con.setRequestMethod("POST");
+                con.setRequestProperty("content-type", "application/octet-stream");
+                con.getOutputStream().write(postBytes);
+            }
             con.connect();
             code = con.getResponseCode();
-        } catch (IOException io) {
+            Log.i(T, "code read");
+            if (code < 400)
+                is = con.getInputStream();
+            Log.i(T, "is, code read");
+        } catch (Exception io) {
             Log.i(T, "connection failed");
             io.printStackTrace();
             code = CONNECTIVITY_ERR_CODE;
@@ -52,7 +59,6 @@ public class HttpConThread extends Thread implements Consts{
             }
         }
     }
-
 
     public String getResponseString() {
         if(is == null) return "-1";

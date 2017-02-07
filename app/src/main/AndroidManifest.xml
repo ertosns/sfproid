@@ -29,10 +29,32 @@
         <activity android:name=".Authentication.Login"/>
         <activity android:name=".Authentication.Signup"/>
 
+        <activity android:name=".SocialNetworking.Requests"
+            android:finishOnTaskLaunch="true"/>
+        <activity android:name=".SocialNetworking.Songs"
+            android:finishOnTaskLaunch="true"/>
+        <activity android:name=".SocialNetworking.SongInfoActivity"
+            android:finishOnTaskLaunch="true"/>
+        <activity android:name=".SocialNetworking.Search"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.SEARCH" />
+            </intent-filter>
+            <meta-data android:name="android.app.searchable"
+                android:resource="@xml/searchable"/>
+        </activity>
+
+
         <service android:name="err.sfp.Listener"
             android:enabled="true"
             android:exported="false"
             android:process=":listener"/>
+
+        <receiver android:name=".SocialNetworking.NotReceiver">
+            <intent-filter>
+                <action android:name="qa"/>
+            </intent-filter>
+        </receiver>
 
         <receiver android:name=".ConnectivityReceiver">
             <intent-filter>

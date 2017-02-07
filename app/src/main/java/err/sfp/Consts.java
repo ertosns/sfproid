@@ -10,7 +10,7 @@ public interface Consts {
     String APP_PREFERENCES = "app_pref";
     String APP_PREFERENCES_LISTENER = "APPPREFLIST";
     String PROTOCOL ="http://";
-    String HOST = "192.168.1.21";
+    String HOST = "192.168.1.3";
     String PATH = ":8080/sfp/getsong?";
     String ONLINE = "online";
     int SOCK_PORT = 65123;
@@ -62,6 +62,18 @@ public interface Consts {
     String SONG_INFO_ACTIVITY_BITMAP = "siab";
     String SONG_INFO_ACTIVITY_TITLE = "siat";
     String SONG_INFO_ACTIVITY_URL = "siau";
+    String NEW_DATABASE = "dbi";
+
+    //server query parameters
+    String ACCEPTED_REQUESTS= "getacceptedrequests";
+    String UNRESPONDED_REQUESTS = "listofunrespondedrequests";
+    String NEW_REQUESTS = "listofnewrequests";
+    String NEW_SONGS = "listofnewsharedsongs";
+    String UNRESPONDED_SONGS = "listofsharedsongs";
+    String PEERS_REQUESTS = "listofpeersinfo";
+    String NON_NEW_REQUESTS = "listofnonnewrequests";
+    String REQUEST_ACTION = "qa";
+    String SONG_ACTION = "sa";
 
 
 }
