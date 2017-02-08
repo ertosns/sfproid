@@ -79,7 +79,7 @@ public class SongInfoActivity extends AppCompatActivity implements Consts {
                 {
                     Database database = Database.getDatabase();
                     if (database.hasTable(DBContract.PEERS_TABLE)) ii = database.getPeersShip(true);
-                    else Utils.getRequestsFromServer(PEERS_REQUESTS, ii, false, true);
+                    else Utils.getRequestsFromServer(PEERS_REQUESTS, ii, false, true, null);
                 }
                 Log.i(T, "peer iteminfo size "+ii.length);
                 ShareSongDialog ssd = new ShareSongDialog();

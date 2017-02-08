@@ -23,7 +23,8 @@ import err.sfp.Utils;
  * Created by root on 16-12-7.
  */
 
-public class Signup extends AppCompatActivity implements Consts{
+public class Signup extends AppCompatActivity implements Consts
+{
 
     @BindView(R.id.signup_name) EditText name;
     @BindView(R.id.signup_pass) EditText password;
@@ -37,7 +38,8 @@ public class Signup extends AppCompatActivity implements Consts{
 
 
     @Override
-    protected void onCreate(Bundle saveBundleInstance) {
+    protected void onCreate(Bundle saveBundleInstance)
+    {
         super.onCreate(saveBundleInstance);
         setContentView(R.layout.signup);
         ButterKnife.bind(this);
@@ -51,7 +53,8 @@ public class Signup extends AppCompatActivity implements Consts{
             public void onClick(View view) {
                 //TODO SET style
 
-                if(!Utils.isOnline(Signup.this)) {
+                if(!Utils.isOnline(Signup.this))
+                {
                     Log.i(T, "no connectivity");
                     signup.setError(getString(R.string.NO_CONNECTIVITY));
                     Log.i(T, "should return");
@@ -61,7 +64,8 @@ public class Signup extends AppCompatActivity implements Consts{
                 String inputName = String.valueOf(name.getText());
                 if(inputName == null) badName();
                 boolean validName = Utils.validateWord(inputName);
-                if(!validName) {
+                if(!validName)
+                {
                     Log.i(T, "not a valid name");
                     badName();
                     return;
@@ -70,7 +74,8 @@ public class Signup extends AppCompatActivity implements Consts{
                 String inputPassword = String.valueOf(password.getText());
                 if(inputPassword == null) badPass();
                 boolean validPass = Utils.validatePass(inputPassword);
-                if(!validPass) {
+                if(!validPass)
+                {
                     Log.i(T, "not a valid Pass "+inputPassword);
                     badPass();
                     return;
@@ -79,7 +84,8 @@ public class Signup extends AppCompatActivity implements Consts{
                 String inputEmail = String.valueOf(email.getText());
                 if(inputEmail == null) badEmail();
                 boolean validEmail = Utils.validateEmail(inputEmail);
-                if(!validEmail) {
+                if(!validEmail)
+                {
                     Log.i(T, "not a valid email "+inputEmail);
                     badEmail();
                     return;
@@ -89,11 +95,16 @@ public class Signup extends AppCompatActivity implements Consts{
                         .append(getSignupUrl(inputName, inputPassword, inputEmail)).toString();
                 Log.i(T, new StringBuilder("singup url:").append(url).toString());
                 int resCode = signup(url);
-                if (resCode == SERVER_ERR_CODE) {
+                if (resCode == SERVER_ERR_CODE)
+                {
                     signup.setError(getString(R.string.SERVER_ERROR));
-                } else if (resCode == USER_ALREADY_FOUND_CODE) {
+                }
+                else if (resCode == USER_ALREADY_FOUND_CODE)
+                {
                     signup.setError(getString(R.string.USER_ALREADY_FOUND));
-                } else if (resCode == CONNECTIVITY_ERR_CODE) {
+                }
+                else if (resCode == CONNECTIVITY_ERR_CODE)
+                {
                     signup.setError(getString(R.string.CONNECTIVITY_ERROR));
                 }
             }
@@ -121,19 +132,25 @@ public class Signup extends AppCompatActivity implements Consts{
         email.setError(getString(R.string.BAD_EMAIL));
     }
 
-    public int signup(String url) {
+    public int signup(String url)
+    {
         progressDialog.show();
         HttpConThread hct = new HttpConThread(url);
-        synchronized (hct) {
-            try {
+        synchronized (hct)
+        {
+            try
+            {
                 hct.wait();
-            } catch (InterruptedException ie) {
+            }
+            catch (InterruptedException ie)
+            {
                 ie.printStackTrace();
             }
         }
 
         int code = hct.code;
-        if(code == SUCCESS_CODE) {
+        if(code == SUCCESS_CODE)
+        {
             pref.putString(UNIQUE_ID,  hct.getResponseString());
 
             pref.putBoolean(SIGNED, true);
@@ -147,7 +164,8 @@ public class Signup extends AppCompatActivity implements Consts{
         return code;
     }
 
-    public String getSignupUrl(String name, String pass, String email) {
+    public String getSignupUrl(String name, String pass, String email)
+    {
             return new StringBuilder("signup=true&mobile=true&")
                     .append(Utils.base64Url("name")).append("=")
                     .append(Utils.base64Url(name)).append("&")

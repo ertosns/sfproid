@@ -140,8 +140,8 @@ public class Login extends AppCompatActivity implements Consts {
                 if (!uniqueId.equals(Main.sharedPreferences.getString(UNIQUE_ID, "")))
                 {
                     // change helper of Database, new helper for client database.
-                    Utils.getRequestsFromServer(NON_NEW_REQUESTS, null, false, false);
-                    Utils.getSongsFromServer(UNRESPONDED_SONGS, null, false);
+                    Utils.getRequestsFromServer(NON_NEW_REQUESTS, null, false, false, null);
+                    Utils.getSongsFromServer(UNRESPONDED_SONGS, null, false, null);
                 }
                 Utils.mainActivityIntent(Login.this);
             }

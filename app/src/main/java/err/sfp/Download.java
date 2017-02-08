@@ -270,7 +270,7 @@ public class Download extends AppCompatActivity
         if (signedUp() && rwPermissionsGranted() && isListeningToggleOn())
         {
             Log.i(T, "start Listener Service");
-            listenerService.putExtra(UNIQUE_ID, sharedPreferences.getString(UNIQUE_ID, null));
+            listenerService.putExtra(UNIQUE_ID, Utils.getUserUniqueId());
             if (isListeningToggleOn())
             {
                 Log.i(T, "stopping previous service");
@@ -593,7 +593,6 @@ public class Download extends AppCompatActivity
     public void loginMode()
     {
         Log.i(T, "login mode");
-
 
         updateListOfDownloads();
         updateDownloads();

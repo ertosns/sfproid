@@ -22,54 +22,31 @@ import err.sfp.SocialNetworking.ItemInfo;
 import err.sfp.SocialNetworking.Requests;
 import err.sfp.SocialNetworking.Songs;
 
-
 /**
  * Created by Err on 16-12-7.
  */
 
 public class Utils implements Consts{
+
     static SharedPreferences sharedPreferences;
     static SharedPreferences.Editor edit;
     static Context context;
     static NotificationManager manger = (NotificationManager) Main.context.getSystemService(context.NOTIFICATION_SERVICE);
 
-    static Intent requestAcceptedIntent;
-    static PendingIntent requestAcceptedPending;
+    static PendingIntent respondRequestPending;
+    static PendingIntent respondSongPending;
 
-    static Intent requestRefusedIntent;
-    static PendingIntent requestRefusedPending;
-
-    static Intent downloadSongIntent;
-    static PendingIntent downloadSongPending;
-
-    static Intent refuseSongIntent;
-    static PendingIntent refuseSongPending;
-
-    static {
+    static
+    {
         sharedPreferences = Main.sharedPreferences;
         edit = Main.edit;
         context = Main.context;
         // not context here in Main and not Listener's
-        requestAcceptedIntent =  new Intent(context, Requests.class);
-        requestAcceptedIntent.setAction(REQUEST_ACTION);
-        requestAcceptedIntent.putExtra(PEERSHIP_REQUEST_ACCPTED, TRUE);
-        requestAcceptedPending = PendingIntent.getBroadcast(getApplicationContext(), 0, requestAcceptedIntent, PendingIntent.FLAG_CANCEL_CURRENT);
 
-        requestRefusedIntent = new Intent(context, Requests.class);
-        requestRefusedIntent.setAction(REQUEST_ACTION);
-        requestRefusedIntent.putExtra(PEERSHIP_REQUEST_ACCPTED, FALSE);
-        requestRefusedPending = PendingIntent.getBroadcast(getApplicationContext(), 0, requestRefusedIntent, PendingIntent.FLAG_CANCEL_CURRENT);
-
-        downloadSongIntent = new Intent(context, Songs.class);
-        downloadSongIntent.setAction(SONG_ACTION);
-        downloadSongIntent.putExtra(DOWNLOAD_SONG, TRUE);
-        downloadSongPending = PendingIntent.getBroadcast(getApplicationContext(), 0, downloadSongIntent, PendingIntent.FLAG_CANCEL_CURRENT);
-
-        refuseSongIntent = new Intent(context, Songs.class);
-        refuseSongIntent.setAction(SONG_ACTION);
-        refuseSongIntent.putExtra(DOWNLOAD_SONG, TRUE);
-        refuseSongPending = PendingIntent.getBroadcast(getApplicationContext(), 0, refuseSongIntent, PendingIntent.FLAG_CANCEL_CURRENT);
-
+        respondRequestPending = PendingIntent.getActivity (getApplicationContext(), 0,
+                new Intent(context, Requests.class), PendingIntent.FLAG_UPDATE_CURRENT);
+        respondSongPending = PendingIntent.getActivity (getApplicationContext(), 0,
+                new Intent(context, Songs.class), PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
     public static String formatBytes(long len) {
@@ -85,7 +62,8 @@ public class Utils implements Consts{
         return bytes;
     }
 
-    public static int readInt(InputStream is) {
+    public static int readInt(InputStream is)
+    {
         byte[] bytes = new byte[4];
         int x = 0;
         try {
@@ -105,7 +83,8 @@ public class Utils implements Consts{
         return x;
     }
 
-    public static String bytesToHex(byte[] bytes) {
+    public static String bytesToHex(byte[] bytes)
+    {
         BigInteger intRep = new BigInteger(bytes);
         return intRep.toString(16);
     }
@@ -128,11 +107,15 @@ public class Utils implements Consts{
         return Main.sharedPreferences.getString(Consts.UNIQUE_ID, null);
     }
 
-    public static Bitmap getThumbnailBitmap(String url) {
-        try {
+    public static Bitmap getThumbnailBitmap(String url)
+    {
+        try
+        {
             Log.i(T, "downloading bitmap of url: "+url);
             return BitmapFactory.decodeStream(new URL(url).openStream());
-        } catch (IOException e) {
+        }
+        catch (IOException e)
+        {
             e.printStackTrace();
         }
         return null;
@@ -224,17 +207,19 @@ public class Utils implements Consts{
         new HttpConThread(markRequestSentUrl, Utils.mergeBytes(Utils.intToBytes(senderId.length),senderId));
     }
 
-    public static void getRequestsFromServer(String query, ItemInfo[] ii, boolean newRequests, boolean ack) {
+    public static void getRequestsFromServer(String query, ItemInfo[] ii, boolean newRequests, boolean ack, String uniqueId)
+    {
         // QUERY <- {ACK_REQUESTS, NEW_REQUESTS}
         //todo SET DATABASE VARAITION
-        String songsInfoQuery = query+"=true&mobile=true&id="+getUserUniqueId();
+        String songsInfoQuery = query+"=true&mobile=true&id="+(uniqueId == null?getUserUniqueId():uniqueId);
         Log.i(T, "songInfoQuery "+songsInfoQuery);
-        try {
+        try
+        {
             HttpConThread con = new HttpConThread(songsInfoQuery);
-            synchronized (con) {
+            synchronized (con)
+            {
                 con.wait();
             }
-
 
             InputStream is = con.is;
 
@@ -245,8 +230,8 @@ public class Utils implements Consts{
             Log.i(T, "Requests "+requests);
             ii = ItemInfo.initArray(requests);
             // note the same code repeated at Request
-            for (int i = 0; i < requests; i++) {
-
+            for (int i = 0; i < requests; i++)
+            {
                 int size = Utils.readInt(is); //name
                 byte[] bytes = new byte[size];
                 Log.i(T, "title size "+size);
@@ -271,11 +256,10 @@ public class Utils implements Consts{
                 is.read(bytes);
                 ii[i].senderId = bytes;
 
-                if (!newRequests) { //unAck_requests||accepted_requests
+                if (!newRequests)
+                { //unAck_requests||accepted_requests
 
                     Log.i(T, "preparing request notification");
-                    requestAcceptedIntent.putExtra(PEER_REQUEST_SENDER_ID, ii[i].senderId);
-                    requestRefusedIntent.putExtra(PEER_REQUEST_SENDER_ID, ii[i].senderId);
 
                     //TODO notification must dismiss after any btn clicked
                     NotificationCompat.Builder builder = new NotificationCompat
@@ -284,15 +268,8 @@ public class Utils implements Consts{
                             .setLargeIcon((ii[i].image == null)?BitmapFactory.decodeResource(Main.context.getResources(), android.R.drawable.gallery_thumb):ii[i].image)
                             .setContentTitle(ii[i].title+" "+context.getString(R.string.PEER_SEND_REQUEST))
                             .setContentText(ii[i].subTitle)
-                            //TODO add drawable if necessary
-                            .addAction(new NotificationCompat.Action(
-                                    0,
-                                    context.getString(R.string.ACCEPT_PEERSHIP),
-                                    requestAcceptedPending))
-                            .addAction(new NotificationCompat.Action(
-                                    0,
-                                    context.getString(R.string.REFUSE),
-                                    requestRefusedPending));
+                            .addAction(new NotificationCompat.Action(0, context.getString(R.string.RESPOND), respondSongPending));
+
 
                     manger.notify(0, builder.build());
                 }
@@ -300,14 +277,16 @@ public class Utils implements Consts{
             Database.getDatabase().insertRequestsItemsInfo(ii, ack);
             for(int i = 0; i < ii.length; i++)
                 if(query.equals(NEW_REQUESTS)) markRequestSent(ii[i].senderId);
-        } catch (Exception e) {
+        }
+        catch (Exception e)
+        {
             e.printStackTrace();
         }
     }
 
-    public static void getSongsFromServer(String query, ItemInfo[] ii, boolean newShares)
+    public static void getSongsFromServer(String query, ItemInfo[] ii, boolean newShares, String uniqueId)
     {
-        String songsInfoQuery = query+"=true&mobile=true&id="+getUserUniqueId();
+        String songsInfoQuery = query+"=true&mobile=true&id="+(uniqueId == null?getUserUniqueId():uniqueId);
         Log.i(T, "songInfoQuery "+songsInfoQuery);
         try
         {
@@ -377,10 +356,6 @@ public class Utils implements Consts{
                 if (newShares)
                 {
                     Log.i(T, "preparing newShares|songs notification");
-                    downloadSongIntent.putExtra(SONG_DATABASE_ID, ii[i].databaseId);
-                    downloadSongIntent.putExtra(SONG_ID, ii[i].songUrl);
-                    downloadSongIntent.putExtra(TITLE, ii[i].title);
-                    refuseSongIntent.putExtra(SONG_DATABASE_ID, ii[i].databaseId);
 
                     NotificationCompat.Builder builder = new NotificationCompat
                             .Builder(getApplicationContext())
@@ -390,14 +365,7 @@ public class Utils implements Consts{
                             .setContentText(ii[i].subTitle)
                             .setContentInfo(ii[i].message)//TODO note sure what is contentInfo
                             //TODO add drawable if necessary
-                            .addAction(new NotificationCompat.Action(
-                                    0,
-                                    context.getString(R.string.DOWNLOAD_SONG),
-                                    downloadSongPending))
-                            .addAction(new NotificationCompat.Action(
-                                    0,
-                                    context.getString(R.string.REFUSE),
-                                    refuseSongPending));
+                            .addAction(new NotificationCompat.Action(0, context.getString(R.string.RESPOND), respondRequestPending));
 
                     manger.notify(0, builder.build());
                 }

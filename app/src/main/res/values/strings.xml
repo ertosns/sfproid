@@ -46,4 +46,5 @@
     <string name="WATCH_ON_YOUTUBE">watch on youtube</string>
     <string name="PEER_SEND_REQUEST">asks to send you songs</string>
     <string name="SEND_SONG_MESSAGE">write message</string>
+    <string name="RESPOND">respond</string>
 </resources>

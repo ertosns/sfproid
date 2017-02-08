@@ -12,8 +12,8 @@ import err.sfp.Database.Database;
 
 public class Main extends Application {
 
-    public static SharedPreferences sharedPreferences;
-    public static SharedPreferences.Editor edit ;
+    public volatile static SharedPreferences sharedPreferences;
+    public volatile static SharedPreferences.Editor edit ;
     public static Database database;
     public static Random random;
     public static boolean logout;

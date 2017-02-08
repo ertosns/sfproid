@@ -24,7 +24,8 @@ import java.net.Socket;
 //TODO SET FLAGS ALL OVER THE CODE
 //TODO inform server you received successfully which song should be removed from server, (res) how several write will work?
 
-public class Listener extends IntentService implements Consts {
+public class Listener extends IntentService implements Consts
+{
     SharedPreferences sharedPreferences  = null;
     SharedPreferences.Editor pref = null;
     String uniqueId = null;
@@ -39,14 +40,14 @@ public class Listener extends IntentService implements Consts {
     }
 
     @Override
-    protected void onHandleIntent(Intent intent) {
+    protected void onHandleIntent(Intent intent)
+    {
         breakFlag = false;
         breakFlag = false;
         IntentFilter filter = new IntentFilter(SHAREDPREFERENCES_ACTION_FILTER);
         filter.addAction(SHAREDPREFERENCES_ACTION_FILTER);
         registerReceiver(broadcastReceiver, filter);
         sharedPreferences = getSharedPreferences(APP_PREFERENCES_LISTENER, MODE_PRIVATE);
-
         pref = sharedPreferences.edit();
         uniqueId = intent.getStringExtra(UNIQUE_ID);
         Log.i(T, "connecting");
@@ -156,11 +157,14 @@ public class Listener extends IntentService implements Consts {
         return pastSongsInfo.substring(pastSongsInfo.indexOf("\n"), pastSongsInfo.length());
     }
 
-    class ListenerThread extends Thread {
+    class ListenerThread extends Thread
+    {
         boolean done = false;
-        public void run() {
+        public void run()
+        {
             Socket sock = null;
-            try {
+            try
+            {
                 Thread t;
                 sock = new Socket(HOST, SOCK_PORT);
                 sock.setSoTimeout(0);
@@ -183,11 +187,12 @@ public class Listener extends IntentService implements Consts {
                 is.read(intBytes);
                 boolean hasUnackRequests = (Utils.bytesToInt(intBytes) == TRUE);
                 Log.i(T, "hasUnackRequests "+hasUnackRequests);
-                if (hasUnackRequests) {
+                if (hasUnackRequests)
+                {
                     new Thread() {
                         @Override
                         public void run() {
-                            Utils.getRequestsFromServer(ACCEPTED_REQUESTS, null, false, true);
+                            Utils.getRequestsFromServer(ACCEPTED_REQUESTS, null, false, true, uniqueId);
                         }
                     }.start();
                 }
@@ -195,11 +200,12 @@ public class Listener extends IntentService implements Consts {
                 is.read(intBytes);
                 boolean hasNewSharedSongs = (Utils.bytesToInt(intBytes) == TRUE);
                 Log.i(T, "hasSongs "+hasNewSharedSongs);
-                if(hasNewSharedSongs) {
+                if(hasNewSharedSongs)
+                {
                     t = new Thread() {
                         @Override
                         public void run() {
-                            Utils.getSongsFromServer(NEW_SONGS, null, true);
+                            Utils.getSongsFromServer(NEW_SONGS, null, true, uniqueId);
                         }
                     };
                     t.start();
@@ -208,11 +214,12 @@ public class Listener extends IntentService implements Consts {
                 is.read(intBytes);
                 boolean hasRequests = (Utils.bytesToInt(intBytes) == TRUE);
                 Log.i(T, "hasRequests "+hasRequests);
-                if(hasRequests) {
+                if(hasRequests)
+                {
                     new Thread() {
                         @Override
                         public void run() {
-                            Utils.getRequestsFromServer(NEW_REQUESTS, null, false, false); //un-responded requests
+                            Utils.getRequestsFromServer(NEW_REQUESTS, null, false, false, uniqueId); //un-responded requests
                         }
                     }.start();
                 }
@@ -221,7 +228,8 @@ public class Listener extends IntentService implements Consts {
                 int numOfSongsToDownload = Utils.bytesToInt(intBytes);
                 Log.i(T, "num of totalDownloads " + numOfSongsToDownload);
 
-                if(numOfSongsToDownload > 0) {
+                if(numOfSongsToDownload > 0)
+                {
 
                     is.read(intBytes);
                     int totalDownloads = Utils.bytesToInt(intBytes);
